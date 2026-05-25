@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Status Reporter</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #f7f5f0;
+    --panel:     #f1ede5;
+    --card:      #ffffff;
+    --ink:       #1a2332;
+    --text:      #2c3e50;
+    --muted:     #8892a0;
+    --subtle:    #e6e1d6;
+    --border:    #d8d2c4;
+    --hairline:  #ebe6da;
+    --input-bg:  #ffffff;
+
+    --accent:    #8b6f47;   /* muted bronze */
+    --accent-2:  #2a3f5f;   /* deep navy */
+
+    --green:     #4a7c59;   /* forest */
+    --amber:     #b8860b;   /* dark goldenrod */
+    --red:       #8b3a3a;   /* oxblood */
+
+    --serif: Georgia, 'Times New Roman', 'Cambria', 'Iowan Old Style', serif;
+    --sans:  -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', system-ui, sans-serif;
+
+    --shadow-sm: 0 1px 2px rgba(26,35,50,0.04), 0 1px 3px rgba(26,35,50,0.06);
+    --shadow:    0 2px 4px rgba(26,35,50,0.04), 0 4px 12px rgba(26,35,50,0.06);
+    --shadow-lg: 0 4px 8px rgba(26,35,50,0.05), 0 12px 32px rgba(26,35,50,0.08);
+  }
+
+  html, body {
+    height: 100%;
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    overflow: hidden;
+    font-size: 14px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* HEADER */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    padding: 22px 36px;
+    background: #ffffff;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .header-icon {
+    width: 42px; height: 42px;
+    background: var(--ink);
+    color: #fff;
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    font-family: var(--serif);
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+  header h1 {
+    font-family: var(--serif);
+    font-size: 1.6rem;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.005em;
+    line-height: 1.2;
+  }
+  header h1 + .tagline {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: 2px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .header-text { display: flex; flex-direction: column; }
+  .download-form { margin-left: auto; }
+
+  /* LAYOUT */
+  .app {
+    display: flex;
+    height: calc(100vh - 89px);
+    overflow: hidden;
+  }
+  .left-panel {
+    width: 42%;
+    min-width: 400px;
+    overflow-y: auto;
+    border-right: 1px solid var(--border);
+    padding: 28px 28px 60px;
+    background: var(--panel);
+    flex-shrink: 0;
+  }
+  .right-panel {
+    flex: 1;
+    overflow-y: auto;
+    padding: 32px 40px 60px;
+    background: var(--bg);
+  }
+
+  /* SECTION */
+  .section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  .section-title {
+    font-family: var(--serif);
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--ink);
+    margin-bottom: 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--hairline);
+    letter-spacing: -0.005em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .section-title::before {
+    content: '';
+    width: 3px;
+    height: 14px;
+    background: var(--accent);
+    flex-shrink: 0;
+  }
+
+  /* FORMS */
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 12px;
+  }
+  .form-grid.full { grid-template-columns: 1fr; }
+  .field { display: flex; flex-direction: column; }
+  .field.full { grid-column: 1 / -1; }
+
+  label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  input, select, textarea {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 0.92rem;
+    padding: 9px 12px;
+    transition: border-color 150ms, box-shadow 150ms;
+    outline: none;
+    font-weight: 400;
+  }
+  input::placeholder, textarea::placeholder { color: #b8bdc7; }
+  input:hover, select:hover, textarea:hover { border-color: #b8b0a0; }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(139,111,71,0.12);
+  }
+  textarea { resize: vertical; min-height: 84px; line-height: 1.55; }
+  select {
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' stroke='%238892a0' stroke-width='1.4' fill='none' stroke-linecap='round'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    padding-right: 30px;
+  }
+
+  /* BUTTONS */
+  .form-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  button {
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    padding: 9px 18px;
+    font-size: 0.85rem;
+    font-family: var(--sans);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 150ms, color 150ms, border-color 150ms, transform 100ms;
+    letter-spacing: 0.02em;
+    background: var(--ink);
+    color: #fff;
+  }
+  button:hover { background: #2c3e50; }
+  button:active { transform: translateY(1px); }
+
+  .btn-add { flex: 1; }
+  .btn-update { background: var(--accent); border-color: var(--accent); flex: 1; }
+  .btn-update:hover { background: #76603e; border-color: #76603e; }
+
+  .btn-cancel-inline {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 4px 12px;
+    font-size: 0.78rem;
+    font-weight: 500;
+    border-radius: 3px;
+  }
+  .btn-cancel-inline:hover { background: var(--hairline); color: var(--ink); }
+
+  .btn-download {
+    background: var(--ink);
+    color: #fff;
+    padding: 10px 22px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+  .btn-download:hover { background: var(--accent); border-color: var(--accent); }
+
+  /* ITEM LIST */
+  .item-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin-top: 18px;
+    border-top: 1px solid var(--hairline);
+  }
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 4px;
+    border-bottom: 1px solid var(--hairline);
+    transition: background 150ms;
+    animation: rowIn 200ms ease-out;
+  }
+  .item:hover { background: rgba(139,111,71,0.03); }
+  .item.editing {
+    background: rgba(139,111,71,0.06);
+    border-left: 2px solid var(--accent);
+    padding-left: 10px;
+  }
+  @keyframes rowIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .item-main { flex: 1; min-width: 0; }
+  .item-title {
+    font-weight: 500;
+    font-size: 0.92rem;
+    color: var(--ink);
+    margin-bottom: 4px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .item-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 0.78rem;
+    align-items: center;
+    color: var(--muted);
+  }
+  .chip {
+    display: inline-block;
+    color: var(--muted);
+    font-weight: 400;
+  }
+  .chip + .chip::before {
+    content: '·';
+    margin-right: 12px;
+    color: var(--border);
+  }
+
+  .item-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .icon-btn {
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--muted);
+    border-radius: 3px;
+    width: 28px; height: 28px;
+    padding: 0;
+    font-size: 12px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 150ms;
+  }
+  .icon-btn:hover { background: var(--hairline); color: var(--ink); border-color: #b8b0a0; }
+  .icon-btn.delete:hover { color: var(--red); border-color: var(--red); background: rgba(139,58,58,0.04); }
+
+  .empty-list {
+    text-align: center;
+    color: var(--muted);
+    font-style: italic;
+    padding: 18px 12px;
+    font-size: 0.85rem;
+  }
+
+  /* PREVIEW */
+  .preview-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 32px 36px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 200ms;
+  }
+  .preview-card:hover { box-shadow: var(--shadow); }
+
+  .preview-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  #prev-name {
+    font-family: var(--serif);
+    font-size: 1.85rem;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.2;
+    flex: 1;
+    letter-spacing: -0.01em;
+  }
+  #prev-name.empty { color: var(--muted); font-style: italic; font-size: 1.4rem; }
+
+  .meta-row {
+    display: flex;
+    gap: 24px;
+    margin: 14px 0 24px;
+    font-size: 0.85rem;
+    flex-wrap: wrap;
+    color: var(--muted);
+  }
+  .meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .meta-pill .meta-key {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  .meta-pill .meta-val {
+    color: var(--ink);
+    font-weight: 500;
+  }
+
+  /* RAG badges */
+  .rag-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    border: 1px solid;
+  }
+  .rag-badge::before {
+    content: '';
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+  .rag-badge.green { color: var(--green); background: rgba(74,124,89,0.08); border-color: rgba(74,124,89,0.25); }
+  .rag-badge.amber { color: var(--amber); background: rgba(184,134,11,0.08); border-color: rgba(184,134,11,0.25); }
+  .rag-badge.red   { color: var(--red);   background: rgba(139,58,58,0.08); border-color: rgba(139,58,58,0.25); }
+  .rag-badge.sm { font-size: 0.66rem; padding: 2px 9px; }
+
+  .preview-section-title {
+    font-family: var(--serif);
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    margin-bottom: 18px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .preview-section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--hairline);
+  }
+
+  #prev-summary {
+    font-size: 0.95rem;
+    line-height: 1.75;
+    color: var(--text);
+    white-space: pre-wrap;
+    font-family: var(--serif);
+  }
+  #prev-summary.empty { color: var(--muted); font-style: italic; font-family: var(--sans); }
+
+  /* TABLES */
+  .preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  .preview-table th {
+    text-align: left;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 10px 12px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    background: #fafaf6;
+  }
+  .preview-table th:first-child { border-top-left-radius: 4px; }
+  .preview-table th:last-child  { border-top-right-radius: 4px; }
+  .preview-table td {
+    padding: 12px;
+    border-bottom: 1px solid var(--hairline);
+    color: var(--text);
+    vertical-align: middle;
+  }
+  .preview-table tr:last-child td { border-bottom: none; }
+  .preview-table tr:hover td { background: #fafaf6; }
+
+  .impact-badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 3px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border: 1px solid;
+  }
+  .impact-high { color: var(--red);   background: rgba(139,58,58,0.06);  border-color: rgba(139,58,58,0.25); }
+  .impact-med  { color: var(--amber); background: rgba(184,134,11,0.06); border-color: rgba(184,134,11,0.25); }
+  .impact-low  { color: var(--green); background: rgba(74,124,89,0.06);  border-color: rgba(74,124,89,0.25); }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 24px 16px;
+    color: var(--muted);
+    font-size: 0.88rem;
+    gap: 8px;
+    font-style: italic;
+  }
+  .empty-state-icon { font-size: 1.6rem; opacity: 0.4; font-style: normal; }
+
+  /* CHART */
+  .chart-container {
+    display: flex;
+    align-items: center;
+    gap: 36px;
+    padding: 8px 0;
+    flex-wrap: wrap;
+  }
+  .chart-canvas-wrap {
+    width: 180px; height: 180px;
+    flex-shrink: 0;
+  }
+  .chart-legend { display: flex; flex-direction: column; gap: 12px; flex: 1; min-width: 200px; }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .legend-item:last-child { border-bottom: none; }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .legend-label {
+    flex: 1;
+    color: var(--text);
+    font-size: 0.88rem;
+  }
+  .legend-count {
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: 1.15rem;
+    color: var(--ink);
+  }
+
+  /* EDITING BANNER */
+  .editing-banner {
+    background: rgba(139,111,71,0.08);
+    border: 1px solid rgba(139,111,71,0.2);
+    border-left: 3px solid var(--accent);
+    border-radius: 3px;
+    padding: 8px 12px;
+    margin-bottom: 14px;
+    font-size: 0.8rem;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .editing-banner.hidden { display: none; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    html, body { overflow: auto; }
+    .app { flex-direction: column; height: auto; }
+    .left-panel { width: 100%; min-width: 0; border-right: none; border-bottom: 1px solid var(--border); padding: 22px; }
+    .right-panel { padding: 22px; }
+    .preview-card { padding: 24px; }
+    header { padding: 18px 22px; }
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #d8d2c4; border-radius: 5px; border: 2px solid var(--bg); }
+  ::-webkit-scrollbar-thumb:hover { background: #b8b0a0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-icon">PS</div>
+  <div class="header-text">
+    <h1>Project Status Reporter</h1>
+    <span class="tagline">Executive Briefing · Generator</span>
+  </div>
+  <form class="download-form" id="form-download">
+    <button type="submit" class="btn-download">Download Report</button>
+  </form>
+</header>
+
+<div class="app">
+  <!-- ============ LEFT: FORMS ============ -->
+  <div class="left-panel">
+
+    <!-- Project Info -->
+    <form class="section" id="form-project">
+      <div class="section-title">Project Information</div>
+      <div class="form-grid full">
+        <div class="field">
+          <label>Project Name</label>
+          <input type="text" name="name" placeholder="e.g. Orion Platform Launch">
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label>Project Owner</label>
+          <input type="text" name="owner" placeholder="Owner name">
+        </div>
+        <div class="field">
+          <label>Report Date</label>
+          <input type="date" name="date">
+        </div>
+      </div>
+      <div class="form-grid full">
+        <div class="field">
+          <label>Overall RAG Status</label>
+          <select name="rag">
+            <option value="Green">Green — On track</option>
+            <option value="Amber">Amber — At risk</option>
+            <option value="Red">Red — Off track</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Executive Summary</label>
+          <textarea name="summary" rows="4" placeholder="High-level narrative for stakeholders…"></textarea>
+        </div>
+      </div>
+    </form>
+
+    <!-- Milestones -->
+    <div class="section">
+      <div class="section-title">Milestones</div>
+      <div class="editing-banner hidden" id="banner-milestone">
+        <span>Editing milestone</span>
+        <button type="button" class="btn-cancel-inline" data-cancel="milestone">Cancel</button>
+      </div>
+      <form id="form-milestone">
+        <div class="form-grid full">
+          <div class="field">
+            <label>Milestone Name</label>
+            <input type="text" name="name" placeholder="e.g. Beta launch" required>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Due Date</label>
+            <input type="date" name="due">
+          </div>
+          <div class="field">
+            <label>Owner</label>
+            <input type="text" name="owner" placeholder="Owner">
+          </div>
+        </div>
+        <div class="form-grid full">
+          <div class="field">
+            <label>RAG Status</label>
+            <select name="rag">
+              <option value="Green">Green</option>
+              <option value="Amber">Amber</option>
+              <option value="Red">Red</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-add" data-add="milestone">Add Milestone</button>
+        </div>
+      </form>
+      <div class="item-list" id="list-milestone"></div>
+    </div>
+
+    <!-- Risks -->
+    <div class="section">
+      <div class="section-title">Risks</div>
+      <div class="editing-banner hidden" id="banner-risk">
+        <span>Editing risk</span>
+        <button type="button" class="btn-cancel-inline" data-cancel="risk">Cancel</button>
+      </div>
+      <form id="form-risk">
+        <div class="form-grid full">
+          <div class="field">
+            <label>Risk Description</label>
+            <input type="text" name="desc" placeholder="What could go wrong?" required>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Impact</label>
+            <select name="impact">
+              <option>High</option>
+              <option selected>Med</option>
+              <option>Low</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Likelihood</label>
+            <select name="likelihood">
+              <option>High</option>
+              <option selected>Med</option>
+              <option>Low</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid full">
+          <div class="field">
+            <label>Mitigation</label>
+            <input type="text" name="mitigation" placeholder="How are we addressing it?">
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select name="status">
+              <option>Open</option>
+              <option>Mitigated</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-add" data-add="risk">Add Risk</button>
+        </div>
+      </form>
+      <div class="item-list" id="list-risk"></div>
+    </div>
+
+    <!-- Decisions -->
+    <div class="section">
+      <div class="section-title">Key Decisions</div>
+      <div class="editing-banner hidden" id="banner-decision">
+        <span>Editing decision</span>
+        <button type="button" class="btn-cancel-inline" data-cancel="decision">Cancel</button>
+      </div>
+      <form id="form-decision">
+        <div class="form-grid full">
+          <div class="field">
+            <label>Decision</label>
+            <input type="text" name="decision" placeholder="What was decided?" required>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Owner</label>
+            <input type="text" name="owner" placeholder="Decision maker">
+          </div>
+          <div class="field">
+            <label>Date Agreed</label>
+            <input type="date" name="date">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-add" data-add="decision">Add Decision</button>
+        </div>
+      </form>
+      <div class="item-list" id="list-decision"></div>
+    </div>
+
+    <!-- Next Steps -->
+    <div class="section">
+      <div class="section-title">Next Steps</div>
+      <div class="editing-banner hidden" id="banner-nextstep">
+        <span>Editing next step</span>
+        <button type="button" class="btn-cancel-inline" data-cancel="nextstep">Cancel</button>
+      </div>
+      <form id="form-nextstep">
+        <div class="form-grid full">
+          <div class="field">
+            <label>Action</label>
+            <input type="text" name="action" placeholder="What needs to happen?" required>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <label>Owner</label>
+            <input type="text" name="owner" placeholder="Who owns it">
+          </div>
+          <div class="field">
+            <label>Due Date</label>
+            <input type="date" name="due">
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="btn-add" data-add="nextstep">Add Next Step</button>
+        </div>
+      </form>
+      <div class="item-list" id="list-nextstep"></div>
+    </div>
+
+  </div>
+
+  <!-- ============ RIGHT: PREVIEW ============ -->
+  <div class="right-panel">
+
+    <div class="preview-card">
+      <div class="preview-header">
+        <div id="prev-name" class="empty">Your Project Name</div>
+        <div id="prev-rag" class="rag-badge amber">Amber</div>
+      </div>
+      <div class="meta-row">
+        <span class="meta-pill"><span class="meta-key">Owner</span><span class="meta-val" id="prev-owner">—</span></span>
+        <span class="meta-pill"><span class="meta-key">Report Date</span><span class="meta-val" id="prev-date">—</span></span>
+      </div>
+      <div class="preview-section-title">Executive Summary</div>
+      <div id="prev-summary" class="empty">Your executive summary will appear here…</div>
+    </div>
+
+    <div class="preview-card">
+      <div class="preview-section-title">Milestones</div>
+      <div id="prev-milestones"></div>
+    </div>
+
+    <div class="preview-card">
+      <div class="preview-section-title">Risks</div>
+      <div id="prev-risks"></div>
+    </div>
+
+    <div class="preview-card">
+      <div class="preview-section-title">Key Decisions</div>
+      <div id="prev-decisions"></div>
+    </div>
+
+    <div class="preview-card">
+      <div class="preview-section-title">Next Steps</div>
+      <div id="prev-nextsteps"></div>
+    </div>
+
+    <div class="preview-card">
+      <div class="preview-section-title">Milestone Status Overview</div>
+      <div class="chart-container">
+        <div class="chart-canvas-wrap">
+          <canvas id="rag-chart"></canvas>
+        </div>
+        <div class="chart-legend">
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#4a7c59"></div>
+            <span class="legend-label">On Track</span>
+            <span class="legend-count" id="cnt-green">0</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#b8860b"></div>
+            <span class="legend-label">At Risk</span>
+            <span class="legend-count" id="cnt-amber">0</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-dot" style="background:#8b3a3a"></div>
+            <span class="legend-label">Off Track</span>
+            <span class="legend-count" id="cnt-red">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// =====================================================================
+// STATE
+// =====================================================================
+const SCHEMAS = {
+  milestone: { listKey: 'milestones', fields: ['name','due','owner','rag'] },
+  risk:      { listKey: 'risks',      fields: ['desc','impact','likelihood','mitigation','status'] },
+  decision:  { listKey: 'decisions',  fields: ['decision','owner','date'] },
+  nextstep:  { listKey: 'nextsteps',  fields: ['action','owner','due'] }
+};
+
+let state = {
+  name: '',
+  owner: '',
+  date: new Date().toISOString().split('T')[0],
+  rag: 'Amber',
+  summary: '',
+  milestones: [],
+  risks: [],
+  decisions: [],
+  nextsteps: []
+};
+
+let editing = { milestone: null, risk: null, decision: null, nextstep: null };
+let ragChart = null;
+
+// =====================================================================
+// SAMPLE
+// =====================================================================
+const SAMPLE = {
+  name: 'Orion Platform Launch',
+  owner: 'Sarah Chen',
+  date: new Date().toISOString().split('T')[0],
+  rag: 'Amber',
+  summary: 'The Orion Platform is progressing well with the core infrastructure now 85% complete. The primary risk is the third-party payment integration which is running two weeks behind schedule. Commercial launch remains targeted for Q3.',
+  milestones: [
+    { name: 'Infrastructure provisioning', due: '2026-04-15', owner: 'Dev Team',     rag: 'Green' },
+    { name: 'Backend API v1 complete',     due: '2026-04-30', owner: 'Alex Rivera',  rag: 'Green' },
+    { name: 'Payment gateway integration', due: '2026-05-14', owner: 'Priya Patel',  rag: 'Amber' },
+    { name: 'Beta user testing',           due: '2026-05-28', owner: 'UX Team',      rag: 'Amber' },
+    { name: 'Commercial launch',           due: '2026-07-01', owner: 'Sarah Chen',   rag: 'Red'   }
+  ],
+  risks: [
+    { desc: 'Payment vendor delays',       impact: 'High', likelihood: 'High', mitigation: 'Evaluating Stripe as fallback', status: 'Open' },
+    { desc: 'Engineer on medical leave',   impact: 'Med',  likelihood: 'Med',  mitigation: 'Onboarding contractor',          status: 'Open' },
+    { desc: 'Database migration data loss',impact: 'High', likelihood: 'Low',  mitigation: 'Full DR backup completed',       status: 'Mitigated' }
+  ],
+  decisions: [
+    { decision: 'Adopt AWS eu-west-1 as primary region', owner: 'CTO',        date: '2026-04-01' },
+    { decision: 'Defer mobile app to Phase 2',           owner: 'CPO',        date: '2026-04-08' },
+    { decision: 'Engage external pen-test firm',         owner: 'Sarah Chen', date: '2026-04-17' }
+  ],
+  nextsteps: [
+    { action: 'Vendor decision: Stripe vs current',      owner: 'Priya Patel',  due: '2026-05-02' },
+    { action: 'Board demo environment setup',            owner: 'Dev Team',     due: '2026-05-09' },
+    { action: 'Beta recruitment — 50 users confirmed',   owner: 'Marketing',    due: '2026-05-10' }
+  ]
+};
+
+// =====================================================================
+// HELPERS
+// =====================================================================
+function save() { localStorage.setItem('psr_state_v2', JSON.stringify(state)); }
+
+function ragClass(v) { return v === 'Green' ? 'green' : v === 'Amber' ? 'amber' : 'red'; }
+function impactClass(v) { return v === 'High' ? 'impact-high' : v === 'Med' ? 'impact-med' : 'impact-low'; }
+
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function fmtDate(d) {
+  if (!d) return '—';
+  try { return new Date(d + 'T12:00:00').toLocaleDateString('en-GB', {day:'numeric',month:'short',year:'numeric'}); }
+  catch(e) { return d; }
+}
+
+// =====================================================================
+// PROJECT FORM (auto-save on input)
+// =====================================================================
+function bindProjectForm() {
+  const form = document.getElementById('form-project');
+  ['name','owner','date','rag','summary'].forEach(key => {
+    const el = form.elements[key];
+    el.value = state[key] || '';
+    el.addEventListener('input',  () => { state[key] = el.value; save(); renderPreview(); });
+    el.addEventListener('change', () => { state[key] = el.value; save(); renderPreview(); });
+  });
+  // prevent submit on this form (it's auto-saving)
+  form.addEventListener('submit', (e) => e.preventDefault());
+}
+
+// =====================================================================
+// LIST FORMS
+// =====================================================================
+function bindListForm(type) {
+  const form = document.getElementById('form-' + type);
+  const schema = SCHEMAS[type];
+
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const item = {};
+    schema.fields.forEach(f => {
+      const el = form.elements[f];
+      if (el) item[f] = el.value || '';
+    });
+
+    if (!hasRequired(item)) return;
+
+    if (editing[type] !== null && editing[type] !== undefined) {
+      state[schema.listKey][editing[type]] = item;
+      editing[type] = null;
+      updateBanner(type);
+      updateSubmitButton(type);
+    } else {
+      state[schema.listKey].push(item);
+    }
+
+    form.reset();
+    // restore default RAG/select values after reset
+    if (form.elements.rag) form.elements.rag.value = 'Green';
+    if (type === 'risk') {
+      form.elements.impact.value = 'Med';
+      form.elements.likelihood.value = 'Med';
+      form.elements.status.value = 'Open';
+    }
+
+    save();
+    renderList(type);
+    renderPreview();
+    updateChart();
+  });
+}
+
+function hasRequired(item) {
+  // require at least one non-empty string field
+  return Object.values(item).some(v => v && String(v).trim() !== '');
+}
+
+// Cancel editing
+function bindCancelButtons() {
+  document.querySelectorAll('[data-cancel]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const type = btn.getAttribute('data-cancel');
+      editing[type] = null;
+      const form = document.getElementById('form-' + type);
+      form.reset();
+      if (form.elements.rag) form.elements.rag.value = 'Green';
+      if (type === 'risk') {
+        form.elements.impact.value = 'Med';
+        form.elements.likelihood.value = 'Med';
+        form.elements.status.value = 'Open';
+      }
+      updateBanner(type);
+      updateSubmitButton(type);
+      renderList(type);
+    });
+  });
+}
+
+function updateBanner(type) {
+  const banner = document.getElementById('banner-' + type);
+  banner.classList.toggle('hidden', editing[type] === null || editing[type] === undefined);
+}
+
+function updateSubmitButton(type) {
+  const btn = document.querySelector(`[data-add="${type}"]`);
+  if (!btn) return;
+  const isEditing = editing[type] !== null && editing[type] !== undefined;
+  if (isEditing) {
+    btn.textContent = 'Save Changes';
+    btn.classList.remove('btn-add');
+    btn.classList.add('btn-update');
+  } else {
+    const labels = {
+      milestone: 'Add Milestone',
+      risk: 'Add Risk',
+      decision: 'Add Decision',
+      nextstep: 'Add Next Step'
+    };
+    btn.textContent = labels[type];
+    btn.classList.add('btn-add');
+    btn.classList.remove('btn-update');
+  }
+}
+
+// =====================================================================
+// LIST RENDERING (left panel)
+// =====================================================================
+function renderList(type) {
+  const cont = document.getElementById('list-' + type);
+  cont.innerHTML = '';
+  const list = state[SCHEMAS[type].listKey];
+
+  if (!list.length) {
+    const e = document.createElement('div');
+    e.className = 'empty-list';
+    e.textContent = 'No entries yet';
+    cont.appendChild(e);
+    return;
+  }
+
+  list.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'item' + (editing[type] === i ? ' editing' : '');
+
+    const main = document.createElement('div');
+    main.className = 'item-main';
+
+    const t = document.createElement('div');
+    t.className = 'item-title';
+    t.textContent = titleFor(type, item) || '(untitled)';
+    main.appendChild(t);
+
+    const meta = document.createElement('div');
+    meta.className = 'item-meta';
+    metaFor(type, item).forEach(m => {
+      if (m == null || m === '') return;
+      if (m instanceof HTMLElement) { meta.appendChild(m); return; }
+      const c = document.createElement('span');
+      c.className = 'chip';
+      c.textContent = m;
+      meta.appendChild(c);
+    });
+    main.appendChild(meta);
+
+    const actions = document.createElement('div');
+    actions.className = 'item-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.className = 'icon-btn edit';
+    editBtn.textContent = '✎';
+    editBtn.title = 'Edit';
+    editBtn.addEventListener('click', () => beginEdit(type, i));
+
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'icon-btn delete';
+    delBtn.textContent = '✕';
+    delBtn.title = 'Delete';
+    delBtn.addEventListener('click', () => deleteItem(type, i));
+
+    actions.appendChild(editBtn);
+    actions.appendChild(delBtn);
+
+    row.appendChild(main);
+    row.appendChild(actions);
+    cont.appendChild(row);
+  });
+}
+
+function titleFor(type, item) {
+  return type === 'milestone' ? item.name :
+         type === 'risk'      ? item.desc :
+         type === 'decision'  ? item.decision :
+                                item.action;
+}
+
+function metaFor(type, item) {
+  if (type === 'milestone') {
+    const rag = document.createElement('span');
+    rag.className = 'rag-badge sm ' + ragClass(item.rag);
+    rag.textContent = item.rag;
+    return [rag, item.due ? fmtDate(item.due) : null, item.owner || null];
+  }
+  if (type === 'risk') {
+    return ['Impact ' + item.impact, 'Likelihood ' + item.likelihood, item.status];
+  }
+  if (type === 'decision') {
+    return [item.owner || null, item.date ? fmtDate(item.date) : null];
+  }
+  return [item.owner || null, item.due ? fmtDate(item.due) : null];
+}
+
+function beginEdit(type, i) {
+  editing[type] = i;
+  const item = state[SCHEMAS[type].listKey][i];
+  const form = document.getElementById('form-' + type);
+  SCHEMAS[type].fields.forEach(f => {
+    if (form.elements[f]) form.elements[f].value = item[f] || '';
+  });
+  updateBanner(type);
+  updateSubmitButton(type);
+  renderList(type);
+  // focus first input
+  const first = form.querySelector('input, textarea, select');
+  if (first) {
+    first.focus();
+    form.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+function deleteItem(type, i) {
+  state[SCHEMAS[type].listKey].splice(i, 1);
+  if (editing[type] === i) { editing[type] = null; updateBanner(type); updateSubmitButton(type); }
+  else if (editing[type] !== null && editing[type] > i) editing[type]--;
+  save();
+  renderList(type);
+  renderPreview();
+  if (type === 'milestone') updateChart();
+}
+
+// =====================================================================
+// PREVIEW (right panel)
+// =====================================================================
+function renderPreview() {
+  const nameEl = document.getElementById('prev-name');
+  if (state.name) { nameEl.textContent = state.name; nameEl.classList.remove('empty'); }
+  else { nameEl.textContent = 'Your Project Name'; nameEl.classList.add('empty'); }
+
+  const ragEl = document.getElementById('prev-rag');
+  ragEl.className = 'rag-badge ' + ragClass(state.rag);
+  ragEl.textContent = state.rag;
+
+  document.getElementById('prev-owner').textContent = state.owner || '—';
+  document.getElementById('prev-date').textContent  = state.date ? fmtDate(state.date) : '—';
+
+  const sumEl = document.getElementById('prev-summary');
+  if (state.summary) { sumEl.textContent = state.summary; sumEl.classList.remove('empty'); }
+  else { sumEl.textContent = 'Your executive summary will appear here…'; sumEl.classList.add('empty'); }
+
+  // Milestones
+  const mEl = document.getElementById('prev-milestones');
+  if (!state.milestones.length) {
+    mEl.innerHTML = `<div class="empty-state">No milestones recorded</div>`;
+  } else {
+    mEl.innerHTML = `<table class="preview-table">
+      <thead><tr><th>Milestone</th><th>Due</th><th>Owner</th><th>Status</th></tr></thead>
+      <tbody>${state.milestones.map(m => `<tr>
+        <td>${esc(m.name)||'<i style="color:var(--muted)">Untitled</i>'}</td>
+        <td>${fmtDate(m.due)}</td>
+        <td>${esc(m.owner)||'—'}</td>
+        <td><span class="rag-badge sm ${ragClass(m.rag)}">${m.rag}</span></td>
+      </tr>`).join('')}</tbody></table>`;
+  }
+
+  // Risks
+  const rEl = document.getElementById('prev-risks');
+  if (!state.risks.length) {
+    rEl.innerHTML = `<div class="empty-state">No risks logged</div>`;
+  } else {
+    rEl.innerHTML = `<table class="preview-table">
+      <thead><tr><th>Risk</th><th>Impact</th><th>Likelihood</th><th>Mitigation</th><th>Status</th></tr></thead>
+      <tbody>${state.risks.map(r => `<tr>
+        <td>${esc(r.desc)||'<i style="color:var(--muted)">Untitled</i>'}</td>
+        <td><span class="impact-badge ${impactClass(r.impact)}">${r.impact}</span></td>
+        <td><span class="impact-badge ${impactClass(r.likelihood)}">${r.likelihood}</span></td>
+        <td>${esc(r.mitigation)||'—'}</td>
+        <td><span class="rag-badge sm ${r.status==='Mitigated'?'green':'amber'}">${r.status}</span></td>
+      </tr>`).join('')}</tbody></table>`;
+  }
+
+  // Decisions
+  const dEl = document.getElementById('prev-decisions');
+  if (!state.decisions.length) {
+    dEl.innerHTML = `<div class="empty-state">No decisions recorded</div>`;
+  } else {
+    dEl.innerHTML = `<table class="preview-table">
+      <thead><tr><th>Decision</th><th>Owner</th><th>Date</th></tr></thead>
+      <tbody>${state.decisions.map(d => `<tr>
+        <td>${esc(d.decision)||'<i style="color:var(--muted)">Untitled</i>'}</td>
+        <td>${esc(d.owner)||'—'}</td>
+        <td>${fmtDate(d.date)}</td>
+      </tr>`).join('')}</tbody></table>`;
+  }
+
+  // Next Steps
+  const nEl = document.getElementById('prev-nextsteps');
+  if (!state.nextsteps.length) {
+    nEl.innerHTML = `<div class="empty-state">No next steps planned</div>`;
+  } else {
+    nEl.innerHTML = `<table class="preview-table">
+      <thead><tr><th>Action</th><th>Owner</th><th>Due</th></tr></thead>
+      <tbody>${state.nextsteps.map(n => `<tr>
+        <td>${esc(n.action)||'<i style="color:var(--muted)">Untitled</i>'}</td>
+        <td>${esc(n.owner)||'—'}</td>
+        <td>${fmtDate(n.due)}</td>
+      </tr>`).join('')}</tbody></table>`;
+  }
+}
+
+// =====================================================================
+// CHART
+// =====================================================================
+function initChart() {
+  if (typeof Chart === 'undefined') return;
+  const ctx = document.getElementById('rag-chart').getContext('2d');
+  ragChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['On Track','At Risk','Off Track'],
+      datasets: [{
+        data: [0,0,0],
+        backgroundColor: ['#4a7c59','#b8860b','#8b3a3a'],
+        borderColor: '#ffffff',
+        borderWidth: 2,
+        hoverOffset: 6
+      }]
+    },
+    options: {
+      cutout: '70%',
+      plugins: { legend: { display: false } },
+      animation: { duration: 400 }
+    }
+  });
+  updateChart();
+}
+
+function updateChart() {
+  const g = state.milestones.filter(m => m.rag === 'Green').length;
+  const a = state.milestones.filter(m => m.rag === 'Amber').length;
+  const r = state.milestones.filter(m => m.rag === 'Red').length;
+  document.getElementById('cnt-green').textContent = g;
+  document.getElementById('cnt-amber').textContent = a;
+  document.getElementById('cnt-red').textContent   = r;
+
+  if (!ragChart) return;
+  const total = g + a + r;
+  ragChart.data.datasets[0].data = total ? [g,a,r] : [1,0,0];
+  ragChart.data.datasets[0].backgroundColor = total
+    ? ['#4a7c59','#b8860b','#8b3a3a']
+    : ['#e6e1d6','#e6e1d6','#e6e1d6'];
+  ragChart.update();
+}
+
+// =====================================================================
+// DOWNLOAD
+// =====================================================================
+function downloadReport(e) {
+  if (e) e.preventDefault();
+
+  function badge(rag) {
+    const map = {
+      Green: { c: '#4a7c59', bg: 'rgba(74,124,89,0.08)', bo: 'rgba(74,124,89,0.25)' },
+      Amber: { c: '#b8860b', bg: 'rgba(184,134,11,0.08)', bo: 'rgba(184,134,11,0.25)' },
+      Red:   { c: '#8b3a3a', bg: 'rgba(139,58,58,0.08)',  bo: 'rgba(139,58,58,0.25)' }
+    };
+    const s = map[rag] || map.Amber;
+    return `<span style="display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:999px;font-size:0.72rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;border:1px solid ${s.bo};background:${s.bg};color:${s.c}"><span style="width:6px;height:6px;border-radius:50%;background:${s.c}"></span>${rag}</span>`;
+  }
+  function impHtml(v) {
+    const map = {
+      High: { c: '#8b3a3a', bg: 'rgba(139,58,58,0.06)',  bo: 'rgba(139,58,58,0.25)' },
+      Med:  { c: '#b8860b', bg: 'rgba(184,134,11,0.06)', bo: 'rgba(184,134,11,0.25)' },
+      Low:  { c: '#4a7c59', bg: 'rgba(74,124,89,0.06)',  bo: 'rgba(74,124,89,0.25)' }
+    };
+    const s = map[v] || map.Med;
+    return `<span style="display:inline-block;padding:2px 9px;border-radius:3px;font-size:0.68rem;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;border:1px solid ${s.bo};background:${s.bg};color:${s.c}">${v}</span>`;
+  }
+
+  const tdStyle = 'padding:12px;border-bottom:1px solid #ebe6da;color:#2c3e50;vertical-align:middle';
+  const milRows = state.milestones.map(m => `<tr>
+    <td style="${tdStyle}">${esc(m.name)||'—'}</td>
+    <td style="${tdStyle}">${fmtDate(m.due)}</td>
+    <td style="${tdStyle}">${esc(m.owner)||'—'}</td>
+    <td style="${tdStyle}">${badge(m.rag)}</td></tr>`).join('');
+  const riskRows = state.risks.map(r => `<tr>
+    <td style="${tdStyle}">${esc(r.desc)||'—'}</td>
+    <td style="${tdStyle}">${impHtml(r.impact)}</td>
+    <td style="${tdStyle}">${impHtml(r.likelihood)}</td>
+    <td style="${tdStyle}">${esc(r.mitigation)||'—'}</td>
+    <td style="${tdStyle}">${badge(r.status==='Mitigated'?'Green':'Amber')}</td></tr>`).join('');
+  const decRows = state.decisions.map(d => `<tr>
+    <td style="${tdStyle}">${esc(d.decision)||'—'}</td>
+    <td style="${tdStyle}">${esc(d.owner)||'—'}</td>
+    <td style="${tdStyle}">${fmtDate(d.date)}</td></tr>`).join('');
+  const nsRows = state.nextsteps.map(n => `<tr>
+    <td style="${tdStyle}">${esc(n.action)||'—'}</td>
+    <td style="${tdStyle}">${esc(n.owner)||'—'}</td>
+    <td style="${tdStyle}">${fmtDate(n.due)}</td></tr>`).join('');
+
+  const g = state.milestones.filter(m=>m.rag==='Green').length;
+  const a = state.milestones.filter(m=>m.rag==='Amber').length;
+  const r = state.milestones.filter(m=>m.rag==='Red').length;
+
+  const SERIF = "Georgia, 'Times New Roman', Cambria, serif";
+  const SANS  = "-apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif";
+  const thStyle = 'text-align:left;font-size:0.68rem;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;padding:10px 12px;color:#8892a0;border-bottom:1px solid #d8d2c4;background:#fafaf6';
+  const sectionTitle = `font-family:${SERIF};font-size:0.78rem;font-weight:600;color:#8892a0;margin-bottom:18px;padding-bottom:8px;text-transform:uppercase;letter-spacing:0.14em;border-bottom:1px solid #ebe6da`;
+
+  const docTitle = (state.name || 'Project Status Report').replace(/[<>]/g, '');
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>${esc(docTitle)}</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"><\/script>
+<style>
+@page { size: A4; margin: 18mm 16mm; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#fff;color:#2c3e50;font-family:${SANS};font-size:11pt;line-height:1.5;-webkit-font-smoothing:antialiased;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{padding:0}
+.page{max-width:780px;margin:0 auto;padding:24px}
+.brand{font-family:${SERIF};font-size:9pt;letter-spacing:0.18em;text-transform:uppercase;color:#8b6f47;margin-bottom:6px}
+.hero{padding-bottom:18px;border-bottom:1px solid #ebe6da;margin-bottom:18px}
+.hero-row{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.hero h1{font-family:${SERIF};font-size:24pt;font-weight:600;color:#1a2332;letter-spacing:-0.01em;line-height:1.15;flex:1}
+.meta{display:flex;gap:28px;margin-top:14px;font-size:10pt;flex-wrap:wrap}
+.meta .lbl{font-size:8pt;text-transform:uppercase;letter-spacing:0.1em;color:#8892a0;margin-right:8px}
+.meta .val{color:#1a2332;font-weight:500}
+.section{margin-bottom:22px;page-break-inside:avoid}
+.section-title{font-family:${SERIF};font-size:9pt;font-weight:600;color:#8892a0;margin-bottom:12px;padding-bottom:6px;text-transform:uppercase;letter-spacing:0.16em;border-bottom:1px solid #ebe6da}
+.summary{font-family:${SERIF};font-size:11pt;line-height:1.7;color:#2c3e50;white-space:pre-wrap}
+table{width:100%;border-collapse:collapse;font-size:10pt}
+th{text-align:left;font-size:8pt;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;padding:8px 10px;color:#8892a0;border-bottom:1px solid #d8d2c4;background:#fafaf6}
+td{padding:9px 10px;border-bottom:1px solid #ebe6da;color:#2c3e50;vertical-align:top}
+tr:last-child td{border-bottom:none}
+.chart-wrap{display:flex;align-items:center;gap:32px;flex-wrap:wrap;page-break-inside:avoid}
+.chart-canvas{width:160px;height:160px;flex-shrink:0}
+.legend{display:flex;flex-direction:column;flex:1;min-width:200px}
+.legend-row{display:flex;align-items:center;gap:12px;padding:7px 0;border-bottom:1px solid #ebe6da}
+.legend-row:last-child{border-bottom:none}
+.legend-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.legend-label{flex:1;font-size:10pt}
+.legend-count{font-family:${SERIF};font-weight:600;font-size:13pt;color:#1a2332}
+.footer{text-align:center;font-size:9pt;color:#8892a0;margin-top:24px;font-style:italic;letter-spacing:0.04em;padding-top:14px;border-top:1px solid #ebe6da}
+.empty{font-style:italic;color:#8892a0;padding:6px 0;font-size:10pt}
+
+.print-bar{position:fixed;top:16px;right:16px;display:flex;gap:8px;z-index:10;font-family:${SANS}}
+.print-bar button{border:1px solid #1a2332;background:#1a2332;color:#fff;border-radius:4px;padding:8px 16px;font-size:0.85rem;font-weight:500;cursor:pointer;font-family:inherit;letter-spacing:0.02em}
+.print-bar button:hover{background:#2c3e50}
+.print-bar .secondary{background:#fff;color:#1a2332}
+.print-bar .secondary:hover{background:#f1ede5}
+@media print{ .print-bar{display:none} body{background:#fff} .page{padding:0;max-width:none} }
+</style></head>
+<body>
+<div class="print-bar">
+  <button class="secondary" onclick="window.close()">Close</button>
+  <button onclick="window.print()">Save as PDF</button>
+</div>
+<div class="page">
+  <div class="brand">Project Status Report</div>
+  <div class="hero">
+    <div class="hero-row">
+      <h1>${esc(state.name)||'Untitled Project'}</h1>
+      ${badge(state.rag)}
+    </div>
+    <div class="meta">
+      <span><span class="lbl">Owner</span><span class="val">${esc(state.owner)||'—'}</span></span>
+      <span><span class="lbl">Report Date</span><span class="val">${fmtDate(state.date)}</span></span>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Executive Summary</div>
+    <p class="summary">${esc(state.summary)||'—'}</p>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Milestones</div>
+    ${state.milestones.length ? `<table><thead><tr><th>Milestone</th><th>Due</th><th>Owner</th><th>Status</th></tr></thead><tbody>${milRows}</tbody></table>` : '<p class="empty">No milestones recorded.</p>'}
+  </div>
+
+  <div class="section">
+    <div class="section-title">Risks</div>
+    ${state.risks.length ? `<table><thead><tr><th>Risk</th><th>Impact</th><th>Likelihood</th><th>Mitigation</th><th>Status</th></tr></thead><tbody>${riskRows}</tbody></table>` : '<p class="empty">No risks logged.</p>'}
+  </div>
+
+  <div class="section">
+    <div class="section-title">Key Decisions</div>
+    ${state.decisions.length ? `<table><thead><tr><th>Decision</th><th>Owner</th><th>Date</th></tr></thead><tbody>${decRows}</tbody></table>` : '<p class="empty">No decisions recorded.</p>'}
+  </div>
+
+  <div class="section">
+    <div class="section-title">Next Steps</div>
+    ${state.nextsteps.length ? `<table><thead><tr><th>Action</th><th>Owner</th><th>Due</th></tr></thead><tbody>${nsRows}</tbody></table>` : '<p class="empty">No next steps added.</p>'}
+  </div>
+
+  <div class="section">
+    <div class="section-title">Milestone Status Overview</div>
+    <div class="chart-wrap">
+      <div class="chart-canvas"><canvas id="rc"></canvas></div>
+      <div class="legend">
+        <div class="legend-row"><div class="legend-dot" style="background:#4a7c59"></div><span class="legend-label">On Track</span><span class="legend-count">${g}</span></div>
+        <div class="legend-row"><div class="legend-dot" style="background:#b8860b"></div><span class="legend-label">At Risk</span><span class="legend-count">${a}</span></div>
+        <div class="legend-row"><div class="legend-dot" style="background:#8b3a3a"></div><span class="legend-label">Off Track</span><span class="legend-count">${r}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">Generated ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div>
+</div>
+<script>
+(function(){
+  var g=${g},a=${a},r=${r},t=g+a+r;
+  function draw(){
+    var ctx=document.getElementById('rc').getContext('2d');
+    new Chart(ctx,{type:'doughnut',data:{labels:['On Track','At Risk','Off Track'],datasets:[{data:t?[g,a,r]:[1,0,0],backgroundColor:t?['#4a7c59','#b8860b','#8b3a3a']:['#e6e1d6','#e6e1d6','#e6e1d6'],borderColor:'#fff',borderWidth:2}]},options:{responsive:true,maintainAspectRatio:false,cutout:'70%',plugins:{legend:{display:false}},animation:{duration:0}}});
+  }
+  if(typeof Chart!=='undefined'){draw();}else{var i=setInterval(function(){if(typeof Chart!=='undefined'){clearInterval(i);draw();}},50);}
+  document.title=${JSON.stringify(docTitle + ' — Status Report')};
+  window.addEventListener('load',function(){setTimeout(function(){window.print();},600);});
+})();
+<\/script>
+</body></html>`;
+
+  // Open in a new window and trigger print → user picks "Save as PDF"
+  const win = window.open('', '_blank');
+  if (!win) {
+    alert('Please allow popups for this site to generate the PDF.');
+    return;
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+}
+
+// =====================================================================
+// BOOT
+// =====================================================================
+function init() {
+  // load from localStorage or seed sample
+  try {
+    const saved = localStorage.getItem('psr_state_v2');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      state = Object.assign(state, parsed);
+    }
+  } catch(e) {}
+
+  if (!state.date) state.date = new Date().toISOString().split('T')[0];
+
+  bindProjectForm();
+  ['milestone','risk','decision','nextstep'].forEach(t => {
+    bindListForm(t);
+    renderList(t);
+  });
+  bindCancelButtons();
+
+  document.getElementById('form-download').addEventListener('submit', downloadReport);
+
+  initChart();
+  renderPreview();
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
